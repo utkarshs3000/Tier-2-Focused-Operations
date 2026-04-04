@@ -22,6 +22,8 @@
 <summary>[+] View Operation Evidence (C2 Generation & PCAP Dissection)</summary>
 
 **C2 Infrastructure Generation (Kali):**
+![Openssl Server](./red-team/network-attacks/evidence/openssl_srv.png)
+
 ![C2 Cert Generation](./red-team/network-attacks/evidence/kali_tls_c2_capture.png)
 
 **Malicious Certificate Isolation (Wireshark):**
