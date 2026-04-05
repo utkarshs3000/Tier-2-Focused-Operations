@@ -18,6 +18,11 @@
   * **Refined Hunt:** Engineered a highly specific display filter (`ip.addr == 10.10.1.6 and tls.handshake.type == 11`) to eliminate legitimate internet noise. 
   * **Outcome:** Successfully isolated the malicious TLS handshake and extracted the plaintext deceptive certificate strings prior to cryptographic lock, forensically proving the presence of rogue infrastructure.
 
+#### Operation 3: Automated Threat Detection at Scale (Zeek)
+* **Blue Team Defense (Automated):** Transitioned from manual packet inspection to automated protocol analysis using Zeek. 
+* **Detection Engineering:** Parsed the resulting `x509.log` using `zeek-cut` and developed a custom `awk` pipeline (`awk -F '\t' '$1 == $2'`) to mathematically identify self-signed certificates by isolating rows where the `certificate.issuer` string perfectly matched the `certificate.subject` string.
+* **Outcome:** Successfully filtered out thousands of legitimate TLS exchanges and isolated the exact cryptographic signature of the C2 server, alongside known Root CAs (which are inherently self-signed).
+
 <details>
 <summary>[+] View Operation Evidence (C2 Generation & PCAP Dissection)</summary>
 
@@ -28,4 +33,10 @@
 
 **Malicious Certificate Isolation (Wireshark):**
 ![PCAP Dissection](./blue-team/network-forensics/evidence/wireshark_rogue_cert.png)
+
+**Automated Zeek Threat Hunting (AWK Pipeline):**
+![Zeek Automated Parsing](./blue-team/network-forensics/evidence/zeek_detection.png)
+
+![Zeek Automated Parsing](./blue-team/network-forensics/evidence/zeek_true_detection.png)
+
 </details>
