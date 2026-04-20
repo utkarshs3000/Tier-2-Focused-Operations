@@ -40,3 +40,29 @@
 ![Zeek Automated Parsing](./blue-team/network-forensics/evidence/zeek_true_detection.png)
 
 </details>
+
+### Phase 9: Enterprise Penetration Testing & Cryptanalysis
+
+> [!NOTE]  
+> **Objective:** To exploit legacy network resolution protocols (LLMNR/NBT-NS) via Man-in-the-Middle poisoning, harvest cryptographic authentication material from the wire, and execute offline cryptanalysis to recover plaintext credentials.
+
+#### Operation 1: LLMNR Poisoning & Protocol Abuse
+* **Red Team Attack:** Deployed `Responder` on the local subnet to aggressively monitor for failed DNS resolution broadcasts. Simulated an endpoint typo (`\\CorpFinanceServer99`), triggering a fallback to LLMNR/NBT-NS.
+* **Execution:** `Responder` successfully intercepted the broadcast, masqueraded as the requested server, and forced the Windows endpoint to automatically negotiate authentication, yielding a valid NetNTLMv2 Challenge/Response hash for the target user.
+
+#### Operation 2: Offline Cryptanalysis
+* **Red Team Attack:** Extracted the NetNTLMv2 hash from the raw network capture and sanitized the payload for offline cracking to maintain strict OPSEC and avoid endpoint detection mechanisms (e.g., account lockouts, failed login telemetry).
+* **Execution:** Utilized `Hashcat` (Mode 5600) paired with a targeted dictionary attack (`rockyou.txt`) to shatter the HMAC-MD5 cryptography. 
+* **Outcome:** Successfully reversed the cryptographic response and recovered the plaintext Active Directory credentials.
+
+<details>
+<summary>[+] View Operation Evidence (Protocol Poisoning)</summary>
+
+**LLMNR Poisoning & NetNTLMv2 Capture:**
+![Responder](./red-team/enterprise-pentest/evidence/responder.png)
+
+![Responder Capture](./red-team/enterprise-pentest/evidence/responder_ntlmv2_capture.png)
+
+![Responder Crack](./red-team/enterprise-pentest/evidence/responder_ntlmv2_crack.png)
+*(Note: Cryptanalysis evidence redacted per OPSEC protocols to protect plaintext credential exposure).*
+</details>
