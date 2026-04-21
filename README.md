@@ -136,6 +136,7 @@
 
 **Red Team Verification (Attack Blocked):**
 ![NetExec Logon Failure](./blue-team/identity-defense/evidence/nxc_pth_blocked.png)
+<details>
 
 ### Phase 12: Tactical Cloud & Kubernetes Security (Purple Team)
 
