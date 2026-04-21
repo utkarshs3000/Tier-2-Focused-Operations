@@ -1,6 +1,6 @@
 ### Phase 8: Advanced Traffic Analysis & Applied Cryptography
 
-> [!NOTE]  
+> [!NOTE]
 > **Objective:** To simulate encrypted Command and Control (C2) infrastructure using deceptive cryptographic material, and subsequently utilize deep packet inspection to hunt the malicious beacon within raw network telemetry.
 
 #### Operation 1: Encrypted C2 Emulation & Infrastructure Debugging
@@ -43,7 +43,7 @@
 
 ### Phase 9: Enterprise Penetration Testing & Cryptanalysis
 
-> [!NOTE]  
+> [!NOTE]
 > **Objective:** To exploit legacy network resolution protocols (LLMNR/NBT-NS) via Man-in-the-Middle poisoning, harvest cryptographic authentication material from the wire, and execute offline cryptanalysis to recover plaintext credentials.
 
 #### Operation 1: LLMNR Poisoning & Protocol Abuse
@@ -69,7 +69,7 @@
 
 ### Phase 10: Identity Exploitation & Lateral Movement
 
-> [!NOTE]  
+> [!NOTE]
 > **Objective:** To weaponize recovered plaintext credentials across the enterprise network, map the internal attack surface via authenticated SMB enumeration, and establish Interactive Remote Code Execution (RCE) via WinRM.
 
 #### Operation 1: Protocol Pivoting & Access Verification
@@ -95,7 +95,7 @@
 
 ### Phase 11: Enterprise Identity Attacks & Defense
 
-> [!NOTE]  
+> [!NOTE]
 > **Objective:** To compromise local identity stores, extract cryptographic authentication tokens, and execute network-wide lateral movement via protocol abuse (Pass-the-Hash).
 
 #### Operation 1: Local Security Authority (LSA) Extraction
@@ -114,13 +114,14 @@
 
 **Pass-the-Hash (PtH) SMB Authentication:**
 ![NetExec PtH Success](./red-team/identity-attacks/evidence/pth_administrator_success.png)
+</details>
 
 #### Operation 3: Blue Team Defense & Root Cause Analysis
 * **Defense Strategy:** Attempted to mitigate Pass-the-Hash by injecting the `FilterAdministratorToken = 1` policy into the LSA registry, theoretically forcing Admin Approval Mode on the built-in RID 500 account over network logons.
 * **Outcome:** The architectural defense failed; the endpoint remained vulnerable to PtH `(Pwn3d!)`.
 * **Root Cause Analysis (RCA):** Discovered a critical environmental misconfiguration. The master User Account Control (UAC) engine was disabled at the OS level (`EnableLUA = 0`). When UAC is disabled, Windows fundamentally ignores token filtering policies, demonstrating that defense-in-depth requires hierarchical policy enforcement.
 
-> [!NOTE]  
+> [!NOTE]
 > **Objective:** To architect and deploy a definitive, Tier 2 mitigation against NTLM cryptographic token forgery (Pass-the-Hash) and lateral movement.
 
 #### Operation 4: Architectural Attack Path Severance
@@ -136,11 +137,11 @@
 
 **Red Team Verification (Attack Blocked):**
 ![NetExec Logon Failure](./blue-team/identity-defense/evidence/nxc_pth_blocked.png)
-<details>
+</details>
 
 ### Phase 12: Tactical Cloud & Kubernetes Security (Purple Team)
 
-> [!NOTE]  
+> [!NOTE]
 > **Objective:** To architect a cloud-native Kubernetes environment, execute a full kill-chain from container breakout to cluster takeover (Red Team), and engineer vendor-agnostic Detection-as-Code to identify the intrusion (Blue Team).
 
 #### Operation 1: Cloud Infrastructure Provisioning & Environmental Engineering
