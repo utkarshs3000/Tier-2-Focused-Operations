@@ -66,3 +66,110 @@
 ![Responder Crack](./red-team/enterprise-pentest/evidence/responder_ntlmv2_crack.png)
 *(Note: Cryptanalysis evidence redacted per OPSEC protocols to protect plaintext credential exposure).*
 </details>
+
+### Phase 10: Identity Exploitation & Lateral Movement
+
+> [!NOTE]  
+> **Objective:** To weaponize recovered plaintext credentials across the enterprise network, map the internal attack surface via authenticated SMB enumeration, and establish Interactive Remote Code Execution (RCE) via WinRM.
+
+#### Operation 1: Protocol Pivoting & Access Verification
+* **Execution:** Utilized `NetExec` to validate the cracked credential (`cyber`:`cyber`) against the target endpoint. Initial SMB (Port 445) enumeration revealed valid authentication but zero unauthorized file share access.
+* **Adaptation:** Shifted lateral movement tactics to Windows Remote Management (WinRM / Port 5985). The protocol successfully accepted the credential and confirmed Local Administrator privileges (`Pwn3d!`).
+
+#### Operation 2: Interactive Remote Code Execution
+* **Execution:** Deployed `Evil-WinRM` to establish a persistent, interactive PowerShell session directly from the Kali attack infrastructure to the Windows endpoint.
+* **Outcome:** Successfully bypassed external protections, gained an interactive shell, and verified administrative token assignment (specifically `SeDebugPrivilege` and `SeTakeOwnershipPrivilege`), enabling advanced post-exploitation memory access.
+
+<details>
+<summary>[+] View Operation Evidence (WinRM Shell)</summary>
+
+**WinRM Lateral Movement Verification:**
+![NetExec WinRM Check](./red-team/enterprise-pentest/evidence/nxc_winrm_success.png)
+
+**Interactive RCE & Token Verification:**
+![Evil-WinRM Shell](./red-team/enterprise-pentest/evidence/evil_winrm_shell.png)
+
+**SAM Hives Save:**
+![Evil-WinRM Shell](./red-team/enterprise-pentest/evidence/regsave.png)
+</details>
+
+### Phase 11: Enterprise Identity Attacks & Defense
+
+> [!NOTE]  
+> **Objective:** To compromise local identity stores, extract cryptographic authentication tokens, and execute network-wide lateral movement via protocol abuse (Pass-the-Hash).
+
+#### Operation 1: Local Security Authority (LSA) Extraction
+* **Red Team Attack:** Executed a "Living off the Land" (LotL) technique via WinRM to silently duplicate the encrypted `SAM` and `SYSTEM` registry hives, exfiltrating them to the attack infrastructure to avoid EDR memory-scanning detections.
+* **Execution:** Utilized `Impacket-secretsdump` offline to decrypt the SYSTEM boot key and parse the Security Account Manager database, successfully extracting the raw NTLM cryptographic hashes for all local accounts, including the built-in RID 500 `Administrator`.
+
+#### Operation 2: Cryptographic Identity Forgery (Pass-the-Hash)
+* **Red Team Attack:** Bypassed plaintext authentication mechanisms entirely by weaponizing the extracted Administrator NTLM hash.
+* **Execution:** Leveraged `NetExec` to inject the raw NTLM hash directly into the SMB authentication protocol (`-H` flag). The target server mathematically validated the token, instantly granting `(Pwn3d!)` Local Administrator execution privileges over the network.
+
+<details>
+<summary>[+] View Operation Evidence (Identity Extraction & PtH)</summary>
+
+**Offline SAM Decryption & Hash Extraction:**
+![Impacket Secretsdump](./red-team/identity-attacks/evidence/impacket_secretsdump.png)
+
+**Pass-the-Hash (PtH) SMB Authentication:**
+![NetExec PtH Success](./red-team/identity-attacks/evidence/pth_administrator_success.png)
+
+#### Operation 3: Blue Team Defense & Root Cause Analysis
+* **Defense Strategy:** Attempted to mitigate Pass-the-Hash by injecting the `FilterAdministratorToken = 1` policy into the LSA registry, theoretically forcing Admin Approval Mode on the built-in RID 500 account over network logons.
+* **Outcome:** The architectural defense failed; the endpoint remained vulnerable to PtH `(Pwn3d!)`.
+* **Root Cause Analysis (RCA):** Discovered a critical environmental misconfiguration. The master User Account Control (UAC) engine was disabled at the OS level (`EnableLUA = 0`). When UAC is disabled, Windows fundamentally ignores token filtering policies, demonstrating that defense-in-depth requires hierarchical policy enforcement.
+
+> [!NOTE]  
+> **Objective:** To architect and deploy a definitive, Tier 2 mitigation against NTLM cryptographic token forgery (Pass-the-Hash) and lateral movement.
+
+#### Operation 4: Architectural Attack Path Severance
+* **Defense Strategy:** Abandoned legacy registry band-aids (UAC token filtering) in favor of strict User Rights Assignment hierarchies.
+* **Execution:** Deployed the `SeDenyNetworkLogonRight` ("Deny access to this computer from the network") security policy targeting the built-in Local Administrator group.
+* **Outcome:** Successfully neutralized the Pass-the-Hash attack vector. The Windows kernel actively rejects valid administrative NTLM hashes presented over SMB, functionally eliminating the primary lateral movement avenue used in enterprise breaches.
+
+<details>
+<summary>[+] View Operation Evidence (Tier 2 Mitigation)</summary>
+
+**Deploying SeDenyNetworkLogonRight via Local Security Policy:**
+![Tier 2 Network Logon Denial](./blue-team/identity-defense/evidence/deny_network_logon_policy.png)
+
+**Red Team Verification (Attack Blocked):**
+![NetExec Logon Failure](./blue-team/identity-defense/evidence/nxc_pth_blocked.png)
+
+### Phase 12: Tactical Cloud & Kubernetes Security (Purple Team)
+
+> [!NOTE]  
+> **Objective:** To architect a cloud-native Kubernetes environment, execute a full kill-chain from container breakout to cluster takeover (Red Team), and engineer vendor-agnostic Detection-as-Code to identify the intrusion (Blue Team).
+
+#### Operation 1: Cloud Infrastructure Provisioning & Environmental Engineering
+* **Deployment:** Architected a local Kubernetes cluster utilizing Docker, `kubectl`, Minikube, and Helm.
+* **Troubleshooting:** Successfully navigated complex Linux dependency matrices, bypassing interactive `debconf` EULA interruptions, VirtualBox DKMS kernel header panics, and Debian/Kali OS repository mismatches. Dynamically resolved `docker.sock` permission boundaries via active session group manipulation (`newgrp`).
+
+#### Operation 2: Red Team - Container Escape & Host Takeover (MITRE T1611)
+* **Execution:** Simulated a compromised web application container suffering from a catastrophic developer misconfiguration (`privileged: true` Pod + `hostPath` volume mount).
+* **Impact:** Executed a Linux Namespace bypass via `chroot /host-system /bin/bash`, successfully escaping the isolated container and achieving `root`-level execution on the underlying Kubernetes Worker Node (verified via `/etc/shadow` extraction).
+
+#### Operation 3: Red Team - K8s API Abuse & Identity Privilege Escalation
+* **Reconnaissance:** "Lived off the land" by deploying missing network binaries (`curl`) inside the pod to harvest the mounted ServiceAccount JSON Web Token (JWT) from `/var/run/secrets/...` (MITRE T1552.007).
+* **The RBAC Wall:** Encountered proper defense-in-depth; the default ServiceAccount triggered a `403 Forbidden` from the API Server, proving that default RBAC successfully contained the blast radius of the container escape.
+* **Escalation:** Exploited a simulated over-privileged RoleBinding (`cluster-admin`). Leveraged this identity to bypass RBAC entirely, using `kubectl auth can-i --list` to verify wildcard access, and subsequently dumped `kube-system` bootstrap tokens to achieve total cluster compromise.
+
+#### Operation 4: Blue Team - Detection Engineering & Sigma Rule Authoring
+* **Defense Strategy:** Transitioned to Detection-as-Code (SEC555 methodology), authoring a vendor-agnostic Sigma YAML rule targeting unauthorized container administration (MITRE T1609).
+* **Execution:** Enforced strict metadata standards by generating RFC-compliant UUIDs for the rule schema. Successfully bypassed `sigma-cli` processing pipeline errors to translate the YAML logic into a highly actionable Splunk SPL query (`Image="*/kubectl"`), ready for immediate SOC deployment.
+
+<details>
+<summary>[+] View Operation Evidence (K8s Red/Blue Operations)</summary>
+
+**Container Escape to Host Node (chroot /etc/shadow):**
+![Docker Socket Escape](./red-team/cloud-exploitation/evidence/docker_sock_escape.png)
+
+**K8s API Privilege Escalation (Cluster-Admin Token Dump):**
+![K8s Cluster Takeover](./red-team/cloud-exploitation/evidence/k8s_cluster_takeover.png)
+
+**Detection-as-Code (Sigma to Splunk SPL compilation):**
+![Sigma Rule Compilation](./blue-team/detection-engineering/evidence/sigma_splunk_compilation.png)
+![Sigma Rule Compilation](./blue-team/detection-engineering/evidence/sigma_splunk_compilation_2.png)
+
+</details>
